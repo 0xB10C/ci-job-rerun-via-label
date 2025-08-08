@@ -1,0 +1,41 @@
+name: CI
+on:
+  push:
+  pull_request:
+    types: [opened, reopened, synchronize, labeled]
+
+
+jobs:
+  check-condition:
+    runs-on: ubuntu-latest
+    outputs:
+      should-run: ${{ steps.check.outputs.should-run }}
+    steps:
+      - id: check
+        run: |
+          if [[ "${{ github.event_name }}" == "push" ]] ||
+             [[ "${{ github.event_name }}" == "pull_request" && (
+                  "${{ github.event.action }}" == "opened" ||
+                  "${{ github.event.action }}" == "reopened" ||
+                  "${{ github.event.action }}" == "synchronize" ||
+                  ( "${{ github.event.action }}" == "labeled" &&
+                    "${{ github.event.label.name }}" == *PeriodicMergeCICheck* )
+             ) ]]; then
+            echo "should-run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should-run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  job1:
+    needs: check-condition
+    if: needs.check-condition.outputs.should-run == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Job 1"
+
+  job2:
+    needs: check-condition
+    if: needs.check-condition.outputs.should-run == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Job 2"
